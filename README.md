@@ -29,3 +29,4 @@ python main.py
 - README.md: This file.
 - circuit.png: Diagram of the simulated circuit.
 - Assignment.pdf: Problem statement.
+- output_example.txt: Example of what is expected to be printed to the terminal when running the simulation
