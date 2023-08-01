@@ -21,7 +21,7 @@ class CircuitSimulator:
     R1 and R2 change linearly over time, from start at t1=0s to end at t2=10s. The voltage and current values are calculated based on these and on RL, following the equation:
         IL = VS / (R1 + RL + (R1 * RL / R2))
         V  = IL * RL
-    The equations represents the solution to the above circuit and were found by applying Kirchoff current and voltage laws.
+    The equations represent the solution to the above circuit and were found by applying Kirchoff current and voltage laws.
 
     Parameters:
     R1_start (float): The initial resistance of R1 at the start of the simulation (t1=0s) in ohms. Default: 0.
@@ -188,8 +188,6 @@ class RollingAverageOhmmeter(Ohmmeter):
     def __init__(self, voltmeter, ammeter):
         super().__init__(voltmeter, ammeter)
         self.values = []
-        self.last_voltmeter_value = None
-        self.last_ammeter_value = None
 
     async def start(self):
         """Start the calculation of the resistance with a rolling average."""
@@ -198,10 +196,6 @@ class RollingAverageOhmmeter(Ohmmeter):
             # Read latest measurements from voltmeter and ammeter
             V, _ = self.voltmeter.get_last_value()
             I, _ = self.ammeter.get_last_value()
-            
-            #if V != self.last_voltmeter_value or I != self.last_ammeter_value:
-            #self.last_voltmeter_value = V
-            #self.last_ammeter_value = I
             
             # Calculate the resistance RL and add it to a list
             RL = V / I if I != 0 else float('inf')
@@ -219,7 +213,7 @@ class RollingAverageOhmmeter(Ohmmeter):
 # ==================================== Application ====================================
 class Application:
     """
-    The Application class represents the entire application. It includes the circuit simulator, the measurement devices, and the ohmmeters. It's meant to start the simulation of the circuit and the measurement and calculation processes of the devices. Then it stops these processes after a specified duration in the circuit simulator (default of 10 s).
+    The Application class represents the entire application. It includes the circuit simulator, the measurement devices, and the ohmmeters. It's meant to start the simulation of the circuit and the measurement and calculation processes of the devices. Then it stops these processes after a specified duration in the circuit simulator (default is 10 s).
 
     Attributes:
     simulator (CircuitSimulator)                        : CircuitSimulator instance that simulates the circuit.
