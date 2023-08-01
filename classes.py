@@ -73,11 +73,12 @@ class CircuitSimulator:
 # ==================================== Ammeter ====================================
 class Ammeter:
     """
-    The Ammeter class represents an ammeter device in the circuit. The device measures the current passing through RL in the circuit at regular intervals.
+    The Ammeter class represents an ammeter device in the circuit. The ammeter measures the current through RL in the circuit at regular intervals. Whenever a reading is performed, the instance of Ohmmeter updates as well.
 
     Parameters:
-    simulator (CircuitSimulator): The CircuitSimulator instance simulates the circuit which this device measures.
-    interval (float)            : The interval at which the device takes measurements, in seconds. Default: 0.1.
+    simulator (CircuitSimulator): The CircuitSimulator instance that simulates the circuit which this device measures.
+    ohmmeter (Ohmmeter)         : The Ohmmeter instance that this device updates.
+    interval (float)            : The interval at which the device takes measurements, in seconds. Default: 0.3.
 
     Attributes:
     last_value (float)      : The last measured value.
@@ -88,21 +89,25 @@ class Ammeter:
     get_last_value(): Returns the last measured value and its timestamp.
     """
     
-    def __init__(self, simulator, interval=0.3):
-        """Initialize the device with a reference to the simulator and the measurement interval."""
+    def __init__(self, simulator, ohmmeter, interval=0.3):
+        """Initialize the device with a reference to the simulator, the ohmmeter, and the measurement interval."""
         self.simulator = simulator
+        self.ohmmeter = ohmmeter
         self.interval = interval
         self.last_value = None
         self.last_timestamp = None
 
     async def start(self):
-        """Starts the measurement."""
+        """Start the measurement."""
         while True:
             # Read the measurement and print the output
             _, self.last_value, self.last_timestamp = self.simulator.get_values(time.time())
-            print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {self.last_value} A')
+            print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {self.last_value}')
             
-            # Pause running for the duration of the interval
+            # Update the current inside the ohmmeter
+            self.ohmmeter.set_current(self.last_value)
+            
+            # Pause running for the characteristic interval
             await asyncio.sleep(self.interval)
 
     def get_last_value(self):
@@ -112,10 +117,11 @@ class Ammeter:
 # ==================================== Voltmeter ====================================
 class Voltmeter:
     """
-    The Voltmeter class represents a voltmeter device in the circuit. The voltmeter measures the voltage across RL in the circuit at regular intervals.
+    The Voltmeter class represents a voltmeter device in the circuit. The voltmeter measures the voltage across RL in the circuit at regular intervals. Whenever a reading is performed, the instance of Ohmmeter updates as well.
 
     Parameters:
     simulator (CircuitSimulator): The CircuitSimulator instance that simulates the circuit which this device measures.
+    ohmmeter (Ohmmeter)         : The Ohmmeter instance that this device updates.
     interval (float)            : The interval at which the device takes measurements, in seconds. Default: 0.1.
 
     Attributes:
@@ -127,9 +133,10 @@ class Voltmeter:
     get_last_value(): Returns the last measured value and its timestamp.
     """
     
-    def __init__(self, simulator, interval=0.1):
-        """Initialize the device with a reference to the simulator and the measurement interval."""
+    def __init__(self, simulator, ohmmeter, interval=0.1):
+        """Initialize the device with the simulator, the ohmmeter, and the measurement interval."""
         self.simulator = simulator
+        self.ohmmeter = ohmmeter
         self.interval = interval
         self.last_value = None
         self.last_timestamp = None
@@ -139,9 +146,12 @@ class Voltmeter:
         while True:
             # Read the measurement and print the output
             self.last_value, _, self.last_timestamp = self.simulator.get_values(time.time())
-            print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {self.last_value} V')
+            print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {self.last_value}')
             
-            # Pause running for the duration of the interval
+            # Update the voltage inside the ohmmeter
+            self.ohmmeter.set_voltage(self.last_value)
+            
+            # Pause running for the characteristic interval until next reading
             await asyncio.sleep(self.interval)
 
     def get_last_value(self):
@@ -151,42 +161,69 @@ class Voltmeter:
 # ==================================== Ohmmeter ====================================
 class Ohmmeter:
     """
-    The Ohmmeter class represents a device for calculating RL in the circuit. This class takes readings from A and V and calculates the resistance RL.
+    The Ohmmeter class calculates the resistance RL in the circuit at regular intervals, based on the latest voltage and current measurements which it stores. The stored values are updated in the Ammeter and Voltmeter whenever a measurement is performed.
 
     Parameters:
-    voltmeter (Voltmeter)   : The Voltmeter instance that measures the voltage in the circuit.
-    ammeter (Ammeter)       : The Ammeter instance that measures the current in the circuit.
+    interval (float): The interval at which the device calculates the resistance, in seconds. Default: 1.0.
+
+    Attributes:
+    voltage (float)         : The last voltage measurement.
+    current (float)         : The last current measurement.
+    last_timestamp (float)  : The timestamp of the last calculation.
 
     Methods:
-    start(): Starts the process of calculating the resistance. It runs as an asynchronous task.
+    start()          : Starts the resistance calculation process. This method is designed to be run as an asynchronous task.
+    set_voltage(val) : Sets the voltage value.
+    set_current(val) : Sets the current value.
     """
-
-    def __init__(self, voltmeter, ammeter, interval=1):
-        """Initialize the ohmmeter with references to a voltmeter and an ammeter."""
-        self.voltmeter = voltmeter
-        self.ammeter = ammeter
+    
+    def __init__(self, interval=1.0):
+        """Initialize the device with the calculation interval."""
         self.interval = interval
+        self.voltage = None
+        self.current = None
+        self.last_timestamp = None
 
     async def start(self):
-        """Start the calculation of the resistance."""
+        """Start the resistance calculation."""
         while True:
-            # Get readings from measurements devices
-            V, _ = self.voltmeter.get_last_value()
-            I, _ = self.ammeter.get_last_value()
+            if self.voltage is not None and self.current is not None:
+                # Calculate the resistance and print the output
+                resistance = self.voltage / self.current if self.current != 0 else float('inf')
+                self.last_timestamp = time.time()
+                print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {resistance}')
             
-            # Calculate the resistance of RL and printout with timestamp
-            RL = V / I if I != 0 else float('inf')
-            print(f'{self.__class__.__name__} calculated RL: {RL} \u03A9')
+            # Pause running for the characteristic interval until next reading
             await asyncio.sleep(self.interval)
+
+    def set_voltage(self, value):
+        """Set the voltage value."""
+        self.voltage = value
+
+    def set_current(self, value):
+        """Set the current value."""
+        self.current = value
             
 # ==================================== RollingAverageOhmmeter ====================================
 class RollingAverageOhmmeter(Ohmmeter):
     """
     The RollingAverageOhmmeter class represents a device for calculating the resistance RL in the circuit with a rolling average. This class takes the latest readings from V and A, calculates RL based on those readings, and computes the rolling average of the calculated values over the last 2 seconds. The class inherits from the Ohmmeter class and overrides the start() method for calculating the rolling average resistance.
+    
+    Parameters:
+    voltmeter (Voltmeter)   : The voltmeter whose voltage readings are stored for the calculation of the rolling average
+    ammeter (Ammeter)       : The ammeter whose voltage readings are stored for the calculation of the rolling average
+
+    Attributes:
+    values (list) : List to store values of RL from the past 2 seconds
+
+    Methods:
+    start()          : Starts the rolling average calculation of RL using voltage and current values recorded in the past 2 s. It overwrites the start() method from Ohmmeter class
     """
 
     def __init__(self, voltmeter, ammeter):
-        super().__init__(voltmeter, ammeter)
+        super().__init__()
+        self.voltmeter = voltmeter
+        self.ammeter = ammeter
         self.values = []
 
     async def start(self):
@@ -197,9 +234,13 @@ class RollingAverageOhmmeter(Ohmmeter):
             V, _ = self.voltmeter.get_last_value()
             I, _ = self.ammeter.get_last_value()
             
-            # Calculate the resistance RL and add it to a list
-            RL = V / I if I != 0 else float('inf')
-            self.values.append((RL, time.time()))
+            # Check if voltage or current values have updated
+            if self.voltage != V or self.current != I:
+                # Calculate the resistance RL and add it to a list
+                RL = V / I if I != 0 else float('inf')
+                self.values.append((RL, time.time()))
+                self.voltage = V
+                self.current = I
             
             # Store only readings from the last 2 s and use them to calculate the rolling average
             self.values = [(v, t) for v, t in self.values if time.time() - t <= 2]
@@ -229,9 +270,9 @@ class Application:
     def __init__(self):
         """Initialize the application with a circuit simulator, a voltmeter, an ammeter, and two ohmmeters."""
         self.simulator = CircuitSimulator()
-        self.voltmeter = Voltmeter(self.simulator)
-        self.ammeter = Ammeter(self.simulator)
-        self.ohmmeter = Ohmmeter(self.voltmeter, self.ammeter)
+        self.ohmmeter = Ohmmeter()
+        self.voltmeter = Voltmeter(self.simulator, self.ohmmeter)
+        self.ammeter = Ammeter(self.simulator, self.ohmmeter)
         self.rolling_average_ohmmeter = RollingAverageOhmmeter(self.voltmeter, self.ammeter)
 
     async def run(self):
