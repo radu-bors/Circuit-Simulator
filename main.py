@@ -3,7 +3,6 @@ This scripts simulates the electrical circuit defined in Assignment.pdf for 10s.
 """
 
 import asyncio # required to run tasks in parallel
-import time # required for timestamps
 
 from classes import Application
 
