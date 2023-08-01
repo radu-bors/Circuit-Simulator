@@ -5,7 +5,9 @@ This scripts contains classes definitions for CircuitSimulator, Ammeter, Voltmet
 import asyncio # required to run tasks in parallel
 import time # required for timestamps
 
-# ==================================== CircuitSimulator ====================================
+# ============================================================
+# Class: CircuitSimulator
+# ============================================================
 class CircuitSimulator:
     """
     The CircuitSimulator class simulates the behavior of the provided electrical circuit over time. The circuit diagram is:
@@ -70,7 +72,9 @@ class CircuitSimulator:
         
         return V, IL, current_time
     
-# ==================================== Ammeter ====================================
+# ============================================================
+# Class: Ammeter
+# ============================================================
 class Ammeter:
     """
     The Ammeter class represents an ammeter device in the circuit. The ammeter measures the current through RL in the circuit at regular intervals. Whenever a reading is performed, the instance of Ohmmeter updates as well.
@@ -102,7 +106,7 @@ class Ammeter:
         while True:
             # Read the measurement and print the output
             _, self.last_value, self.last_timestamp = self.simulator.get_values(time.time())
-            print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {self.last_value}')
+            print(f'{self.__class__.__name__} reading at timestamp {self.last_timestamp:.3f} s : {self.last_value:.5g} A')
             
             # Update the current inside the ohmmeter
             self.ohmmeter.set_current(self.last_value)
@@ -114,7 +118,9 @@ class Ammeter:
         """Return the last measured value and its timestamp."""
         return self.last_value, self.last_timestamp
     
-# ==================================== Voltmeter ====================================
+# ============================================================
+# Class: Voltmeter
+# ============================================================
 class Voltmeter:
     """
     The Voltmeter class represents a voltmeter device in the circuit. The voltmeter measures the voltage across RL in the circuit at regular intervals. Whenever a reading is performed, the instance of Ohmmeter updates as well.
@@ -146,7 +152,7 @@ class Voltmeter:
         while True:
             # Read the measurement and print the output
             self.last_value, _, self.last_timestamp = self.simulator.get_values(time.time())
-            print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {self.last_value}')
+            print(f'{self.__class__.__name__} reading at timestamp {self.last_timestamp:.4f} s : {self.last_value:.5g} V')
             
             # Update the voltage inside the ohmmeter
             self.ohmmeter.set_voltage(self.last_value)
@@ -158,7 +164,9 @@ class Voltmeter:
         """Return the last measured value and its timestamp."""
         return self.last_value, self.last_timestamp
     
-# ==================================== Ohmmeter ====================================
+# ============================================================
+# Class: Ohmmeter
+# ============================================================
 class Ohmmeter:
     """
     The Ohmmeter class calculates the resistance RL in the circuit at regular intervals, based on the latest voltage and current measurements which it stores. The stored values are updated in the Ammeter and Voltmeter whenever a measurement is performed.
@@ -191,7 +199,7 @@ class Ohmmeter:
                 # Calculate the resistance and print the output
                 resistance = self.voltage / self.current if self.current != 0 else float('inf')
                 self.last_timestamp = time.time()
-                print(f'{self.__class__.__name__} reading at {self.last_timestamp}: {resistance}')
+                print(f'{self.__class__.__name__} reading at timestamp {self.last_timestamp:.4f} s : {resistance:.4f} \u03A9')
             
             # Pause running for the characteristic interval until next reading
             await asyncio.sleep(self.interval)
@@ -204,7 +212,9 @@ class Ohmmeter:
         """Set the current value."""
         self.current = value
             
-# ==================================== RollingAverageOhmmeter ====================================
+# ============================================================
+# Class: RollingAverageOhmmeter
+# ============================================================
 class RollingAverageOhmmeter(Ohmmeter):
     """
     The RollingAverageOhmmeter class represents a device for calculating the resistance RL in the circuit with a rolling average. This class takes the latest readings from V and A, calculates RL based on those readings, and computes the rolling average of the calculated values over the last 2 seconds. The class inherits from the Ohmmeter class and overrides the start() method for calculating the rolling average resistance.
@@ -246,12 +256,14 @@ class RollingAverageOhmmeter(Ohmmeter):
             self.values = [(v, t) for v, t in self.values if time.time() - t <= 2]
             RL_avg = sum(v for v, t in self.values) / len(self.values) if self.values else float('inf')
             
-            print(f'{self.__class__.__name__} calculated RL (rolling average): {RL_avg} \u03A9')
+            print(f'{self.__class__.__name__} calculated RL (rolling average): {RL_avg:.4f} \u03A9')
             
             # Pause execution for the specified interval (inherited from the Ohmmeter class)
             await asyncio.sleep(self.interval)
             
-# ==================================== Application ====================================
+# ============================================================
+# Class: Application
+# ============================================================
 class Application:
     """
     The Application class represents the entire application. It includes the circuit simulator, the measurement devices, and the ohmmeters. It's meant to start the simulation of the circuit and the measurement and calculation processes of the devices. Then it stops these processes after a specified duration in the circuit simulator (default is 10 s).
